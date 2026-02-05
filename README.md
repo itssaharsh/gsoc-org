@@ -1,0 +1,1 @@
+This is project built by me to help new contribuy=tors understand orgs and issues adn all things in GSoC i will complete this in some time till then read about how it functions or connect through LINKEDiN.
