@@ -1,1 +1,1 @@
-This is project built by me to help new contributors understand orgs and issues adn all things in GSoC i will complete this in some time till then read about how it functions or connect through LINKEDiN.
+This is project built by me to help new contributors understand orgs and issues and all things in GSoC i will complete this in some time till then read about how it functions or connect through LINKEDiN.
