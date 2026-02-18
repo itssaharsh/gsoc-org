@@ -1,17 +1,26 @@
-name: GSoC Viewer CI/CD
+name: GSoC Viewer CI (Cloud Build)
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  build-and-deploy:
-    runs-on: self-hosted  # MUST be self-hosted to access your WSL cluster
+  build-and-push:
+    runs-on: ubuntu-latest  # Uses GitHub's free cloud runners
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
 
-    # 1. Build Docker Image
+    # 1. Test the Go Code
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+
+    - name: Run Unit & Smoke Tests
+      run: go test -v ./...
+
+    # 2. Build & Push Docker Image
     - name: Login to Docker Hub
       uses: docker/login-action@v2
       with:
@@ -23,26 +32,4 @@ jobs:
       with:
         context: .
         push: true
-        # UPDATE THIS TAG with your Docker Hub username
         tags: yourdockerhubuser/gsoc-viewer:latest
-
-    # 2. Inject Secrets into Cluster
-    - name: Update Cluster Secrets
-      run: |
-        # Create (or overwrite) the secret in the cluster using GitHub variables
-        kubectl create secret generic gsoc-db-secrets \
-          --from-literal=db_root_password='${{ secrets.DB_ROOT_PASSWORD }}' \
-          --from-literal=db_user='${{ secrets.DB_USER }}' \
-          --from-literal=db_password='${{ secrets.DB_PASSWORD }}' \
-          --from-literal=db_name='${{ secrets.DB_NAME }}' \
-          --dry-run=client -o yaml | kubectl apply -f -
-
-    # 3. Deploy App
-    - name: Deploy to Kubernetes
-      run: |
-        # Apply the infrastructure
-        kubectl apply -f k8s/mysql.yaml
-        kubectl apply -f k8s/app.yaml
-        
-        # Force restart the pod to pull the new image
-        kubectl rollout restart deployment/gsoc-viewer
