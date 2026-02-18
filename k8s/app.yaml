@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gsoc-viewer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gsoc-viewer
+  template:
+    metadata:
+      labels:
+        app: gsoc-viewer
+    spec:
+      containers:
+      - name: gsoc-viewer
+        # REPLACE 'yourdockerhubuser' with your actual Docker Hub username
+        image: yourdockerhubuser/gsoc-viewer:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DB_HOST
+          value: "mysql"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: gsoc-db-secrets
+              key: db_user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gsoc-db-secrets
+              key: db_password
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: gsoc-db-secrets
+              key: db_name
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gsoc-viewer-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: gsoc-viewer
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
