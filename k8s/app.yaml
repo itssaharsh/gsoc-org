@@ -15,7 +15,7 @@ spec:
       containers:
       - name: gsoc-viewer
         # REPLACE 'yourdockerhubuser' with your actual Docker Hub username
-        image: yourdockerhubuser/gsoc-viewer:latest
+        image: itsaharsh/gsoc-viewer
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

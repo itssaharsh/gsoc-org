@@ -129,48 +129,58 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // syncHandler fetches data from the external API for the last 4 years
+// syncHandler fetches data from the external API for the last 4 years
 func syncHandler(w http.ResponseWriter, r *http.Request) {
-	currentYear := time.Now().Year()
-	startYear := currentYear - 3 // e.g., 2022, 2023, 2024, 2025
+	// The API currently has robust data up to 2025. 
+	years := []int{2022, 2023, 2024, 2025}
 
-	for year := startYear; year <= currentYear; year++ {
-		// Note: The API structure varies. Assuming endpoint /year exists or generic fetch.
-		// Since api.gsocorganizations.dev docs aren't public, we simulate the fetch logic 
-		// assuming a standard endpoint like /<year>.json or similar.
-		// If the real API returns all years in one go, remove the loop.
-		
-		url := fmt.Sprintf("%s%d.json", APIBaseURL, year) 
-		// If the API is just the root, use that.
-		
+	for _, year := range years {
+		url := fmt.Sprintf("%s%d.json", APIBaseURL, year)
 		log.Printf("Fetching data for year %d from %s", year, url)
-		
+
 		// 1. Fetch
 		resp, err := http.Get(url)
 		if err != nil {
 			log.Printf("Failed to fetch %d: %v", year, err)
 			continue
 		}
-		defer resp.Body.Close()
-
+		
 		if resp.StatusCode != 200 {
 			log.Printf("API returned %d for year %d", resp.StatusCode, year)
+			resp.Body.Close()
 			continue
 		}
 
 		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
 
-		// 2. Parse (Adjust this struct to match exact API response)
-		var orgs []Org
-		if err := json.Unmarshal(body, &orgs); err != nil {
-			log.Printf("JSON Parse error: %v", err)
+		// 2. Parse into a Map (since the JSON root is an Object, not an Array)
+		var apiResponse map[string]interface{}
+		if err := json.Unmarshal(body, &apiResponse); err != nil {
+			log.Printf("JSON Parse error for %d: %v", year, err)
 			continue
 		}
 
 		// 3. Insert into DB
-		stmt, _ := db.Prepare("INSERT IGNORE INTO organizations (name, description, url, year) VALUES (?, ?, ?, ?)")
-		for _, o := range orgs {
-			o.Year = year // Ensure year is set
-			stmt.Exec(o.Name, o.Description, o.URL, o.Year)
+		stmt, err := db.Prepare("INSERT IGNORE INTO organizations (name, description, url, year) VALUES (?, ?, ?, ?)")
+		if err != nil {
+			log.Printf("Database prepare error: %v", err)
+			continue
+		}
+		
+		// Iterate through the map. The key is the Organization Name.
+		for orgName, orgData := range apiResponse {
+			description := "GSoC Organization"
+			orgURL := ""
+
+			// Safely extract the projects_url if the API provided it
+			if dataMap, ok := orgData.(map[string]interface{}); ok {
+				if pUrl, exists := dataMap["projects_url"].(string); exists {
+					orgURL = pUrl
+				}
+			}
+
+			stmt.Exec(orgName, description, orgURL, year)
 		}
 		stmt.Close()
 	}
